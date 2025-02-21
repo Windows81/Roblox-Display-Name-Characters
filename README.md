@@ -2,7 +2,9 @@ What characters can you use in a Rōblox display name?  Check the `.sqlite` file
 
 All web requests come from California, USA on an *account location* from North Korea.
 
-According to the schema, any values where `code` equals -1 means that a display name with three times the character can be used.
+**According to the schema, any values where `code` is either -1 or 4 means that the character can be used *at all* in a username.**
+
+Any values where `code` equals -1 means that a display name with three times the character can be used.
 
 For example: I can pick the display name `CCC` because:
 
