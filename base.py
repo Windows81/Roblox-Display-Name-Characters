@@ -1,21 +1,23 @@
 from collections import deque
+import collections.abc
+import collections
 import threading
 import sqlite3
 import typing
 import time
 
 
-class database_base:
+class database_base[T = dict[str, typing.Any]]:
     INIT_STATEMENTS: str = ""
 
     def __init__(self, path: str = '.sqlite') -> None:
-        self.database = sqlite3.connect(path)
+        self.database: sqlite3.Connection = sqlite3.connect(path)
         self.database.execute(self.INIT_STATEMENTS)
         self.database.execute(
             'create table if not exists CHECKED_IDS (id integer primary key)',
         )
 
-    def add_to_data(self, iden: int, data: dict | None) -> None:
+    def add_to_data(self, iden: int, data: T | None) -> None:
         self.database.execute(
             f'insert or replace into CHECKED_IDS values ({iden})',
         )
@@ -44,8 +46,8 @@ class database_base:
         self.database.commit()
 
 
-class lambda_database(database_base):
-    SCHEMA: dict[str, dict[str, dict[str, typing.Any]]]
+class lambda_database[T = dict[str, typing.Any]](database_base[T]):
+    SCHEMA: dict[str, dict[str, dict[str, typing.Any]]] = {}
 
     def __init__(self, path: str = '.sqlite') -> None:
         super().__init__(path)
@@ -54,18 +56,19 @@ class lambda_database(database_base):
                 f'{field} {item["type"]}'
                 for i, (field, item) in enumerate(table_fields.items())
             ])
-            self.database.execute(
+            _ = self.database.execute(
                 f'create table if not exists {table_name} ({params})',
             )
 
     @staticmethod
-    def __do_lambda(func, iden: int, data: dict | None) -> list[str]:
+    def __do_lambda(func: typing.Callable[[int, T | None], list[str]], iden: int, data: T | None) -> list[str]:
         try:
             return func(iden, data)
         except Exception as _:
             return []
 
-    def add_to_data(self, iden: int, data: dict | None) -> None:
+    @typing.override
+    def add_to_data(self, iden: int, data: T | None) -> None:
         super().add_to_data(iden, data)
         if data is None:
             return
@@ -75,7 +78,7 @@ class lambda_database(database_base):
             fill_ins = ', '.join(['?'] * len(table_fields))
             calls = [
                 self.__do_lambda(item['func'], iden, data)
-                for field, item in table_fields.items()
+                for _, item in table_fields.items()
             ]
             lens = [
                 len(c)
@@ -89,34 +92,39 @@ class lambda_database(database_base):
                 for l, c in zip(lens, calls)
             ]
             params = list(zip(*calls))
-            self.database.executemany(
+            _ = self.database.executemany(
                 f'insert or replace into {table_name} ({fields_str}) values ({fill_ins})', params,
             )
         self.database.commit()
 
 
-class scraper_base:
+class scraper_base[T= typing.Any]:
+
     RANGE_MIN: int = 1
     RANGE_MAX: int = 1 << 31
     DEFAULT_THREAD_COUNT: int = 8
 
     @staticmethod
-    def try_entry(iden: int) -> typing.Any | None:
+    def try_entry(iden: int) -> T | None:
         raise NotImplementedError()
+
+    @staticmethod
+    def should_print_entry(iden: int, entry: T | None) -> bool:
+        return entry is not None
 
     def __init__(
         self,
-        database: database_base,
+        database: database_base[T],
         iden_list: list[int],
         thread_count: int = 1,
     ) -> None:
-        self.queue = deque[tuple[int, dict]]()
+        self.queue = deque[tuple[int, T | None]]()
         self.database = database
         self.thread_count = 0
         self.quit = False
         self.limit = 0
 
-        def __thread_body(gen: typing.Generator[tuple[int, dict], None, None]) -> None:
+        def __thread_body(gen: collections.abc.Generator[tuple[int, T | None], None, None]) -> None:
             self.thread_count += 1
             for o in gen:
                 self.queue.append(o)
@@ -132,28 +140,28 @@ class scraper_base:
             for o in range(0, thread_count)
         ]
 
-    def is_in_range(self, iden: int, entry) -> bool:
+    def is_in_range(self, iden: int, entry: T) -> bool:
         return self.RANGE_MIN <= iden <= self.RANGE_MAX
 
-    def __print_progress(self, i: int, iden: int, info) -> None:
+    def __print_progress(self, i: int, iden: int, entry: T | None) -> None:
         iden_str = f'{iden:10d}'
         if self.quit:
             print(f"{iden_str} ({i}/{self.limit} - {self.thread_count})\n", end='')
-        elif info is None:
-            return
-        else:
+        elif self.should_print_entry(iden, entry):
             print(f"{iden_str}\n", end='')
+        else:
+            return
 
-    def __process(self, r: typing.Iterable[int]) -> typing.Generator[tuple[int, typing.Any], None, None]:
+    def __process(self, r: collections.abc.Iterable[int]) -> collections.abc.Generator[tuple[int, T | None], None, None]:
         for i, base_iden in enumerate(r):
             if i > self.limit:
                 if self.quit:
                     break
                 self.limit = i
 
-            info = self.try_entry(base_iden)
-            self.__print_progress(i, base_iden, info)
-            yield (base_iden, info)
+            entry = self.try_entry(base_iden)
+            self.__print_progress(i, base_iden, entry)
+            yield (base_iden, entry)
 
     def __join_threads(self) -> None:
         self.quit = True

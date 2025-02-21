@@ -9,7 +9,9 @@ MAX_VALUE = 0xffff
 
 
 class display_name_database(base.lambda_database):
-    INIT_STATEMENTS = ""
+    INIT_STATEMENTS = """
+        create view if not exists VALIDS as select * from CHARACTERS where code in (-1, 4);
+    """
     SCHEMA = {
         'CHARACTERS': {
             'iden': {
@@ -28,25 +30,33 @@ class display_name_database(base.lambda_database):
     }
 
 
-class display_name_scraper(base.scraper_base):
+class display_name_scraper(base.scraper_base[int]):
     RANGE_MIN: int = 0
     RANGE_MAX: int = MAX_VALUE - 1
     DEFAULT_THREAD_COUNT: int = 3
 
-    @staticmethod
     @override
+    @staticmethod
+    def should_print_entry(iden: int, entry) -> bool:
+        return entry in {-1, 4}
+
+    @override
+    @staticmethod
     def try_entry(iden: int) -> int:
         test_name = chr(iden) * 3
         wait_count = 0
         retry_count = 0
-        for count in itertools.count():
+        while True:
             try:
-                # Manually replace `1630228` with your user iden number.
+                # You should manually replace `1630228` with your user iden number.
                 result = requests.get(
                     f'https://users.roblox.com/v1/users/1630228/display-names/validate?displayName={test_name}',
                     cookies={'.ROBLOSECURITY': os.environ['ROBLOSECURITY']},
+                    timeout=10,
                 ).json()
             except requests.exceptions.ConnectionError:
+                continue
+            except requests.exceptions.ReadTimeout:
                 continue
 
             # On success
@@ -60,6 +70,7 @@ class display_name_scraper(base.scraper_base):
                 continue
 
             if code == 4 and retry_count < 2:
+                time.sleep(2)
                 retry_count += 1
                 continue
 
