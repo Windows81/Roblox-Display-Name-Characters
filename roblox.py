@@ -1,3 +1,4 @@
+import itertools
 from typing import override
 import requests
 import time
@@ -36,8 +37,8 @@ class display_name_scraper(base.scraper_base):
     @override
     def try_entry(iden: int) -> int:
         test_name = chr(iden) * 3
-        wait_time = 2
-        while True:
+        wait_count = 0
+        for count in itertools.count():
             try:
                 # Manually replace `1630228` with your user iden number.
                 result = requests.get(
@@ -53,8 +54,11 @@ class display_name_scraper(base.scraper_base):
 
             code: int = result["errors"][0]['code']
             if code == 0:  # Too many requests
-                time.sleep(wait_time)
-                wait_time *= 2**(1/3)
+                time.sleep(2**(wait_count/3))
+                wait_count += 1
+                continue
+
+            if code == 4 and count < 2:
                 continue
 
             return code
