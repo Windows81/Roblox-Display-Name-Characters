@@ -38,6 +38,7 @@ class display_name_scraper(base.scraper_base):
     def try_entry(iden: int) -> int:
         test_name = chr(iden) * 3
         wait_count = 0
+        retry_count = 0
         for count in itertools.count():
             try:
                 # Manually replace `1630228` with your user iden number.
@@ -58,7 +59,8 @@ class display_name_scraper(base.scraper_base):
                 wait_count += 1
                 continue
 
-            if code == 4 and count < 2:
+            if code == 4 and retry_count < 2:
+                retry_count += 1
                 continue
 
             return code
