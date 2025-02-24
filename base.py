@@ -7,7 +7,7 @@ import typing
 import time
 
 
-class database_base[T = dict[str, typing.Any]]:
+class database_base[T= dict[str, typing.Any]]:
     INIT_STATEMENTS: str = ""
 
     def __init__(self, path: str = '.sqlite') -> None:
@@ -46,7 +46,7 @@ class database_base[T = dict[str, typing.Any]]:
         self.database.commit()
 
 
-class lambda_database[T = dict[str, typing.Any]](database_base[T]):
+class lambda_database[T= dict[str, typing.Any]](database_base[T]):
     SCHEMA: dict[str, dict[str, dict[str, typing.Any]]] = {}
 
     def __init__(self, path: str = '.sqlite') -> None:
@@ -98,7 +98,7 @@ class lambda_database[T = dict[str, typing.Any]](database_base[T]):
         self.database.commit()
 
 
-class scraper_base[T= typing.Any]:
+class scraper_base[T = typing.Any]:
 
     RANGE_MIN: int = 1
     RANGE_MAX: int = 1 << 31

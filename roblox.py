@@ -42,7 +42,10 @@ class display_name_scraper(base.scraper_base[int]):
 
     @override
     @staticmethod
-    def try_entry(iden: int) -> int:
+    def try_entry(iden: int) -> int | None:
+        # Skips unicode surrogates.
+        if 0xD800 <= iden <= 0xDFFF:
+            return
         test_name = chr(iden) * 3
         wait_count = 0
         retry_count = 0
