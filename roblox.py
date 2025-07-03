@@ -1,4 +1,3 @@
-import itertools
 from typing import override
 import requests
 import time

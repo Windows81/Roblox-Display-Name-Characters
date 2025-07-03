@@ -7,10 +7,11 @@ import typing
 import time
 
 
-class database_base[T= dict[str, typing.Any]]:
+class database_base[T = dict[str, typing.Any]]:
     INIT_STATEMENTS: str = ""
 
-    def __init__(self, path: str = '.sqlite') -> None:
+    def __init__(self, path: str = '_.sqlite') -> None:
+        super().__init__(self, path)
         self.database: sqlite3.Connection = sqlite3.connect(path)
         self.database.execute(self.INIT_STATEMENTS)
         self.database.execute(
@@ -46,10 +47,10 @@ class database_base[T= dict[str, typing.Any]]:
         self.database.commit()
 
 
-class lambda_database[T= dict[str, typing.Any]](database_base[T]):
+class lambda_database[T = dict[str, typing.Any]](database_base[T]):
     SCHEMA: dict[str, dict[str, dict[str, typing.Any]]] = {}
 
-    def __init__(self, path: str = '.sqlite') -> None:
+    def __init__(self, path: str = '_.sqlite') -> None:
         super().__init__(path)
         for table_name, table_fields in self.SCHEMA.items():
             params = ', '.join([
@@ -98,7 +99,7 @@ class lambda_database[T= dict[str, typing.Any]](database_base[T]):
         self.database.commit()
 
 
-class scraper_base[T = typing.Any]:
+class scraper_base[T= typing.Any]:
 
     RANGE_MIN: int = 1
     RANGE_MAX: int = 1 << 31

@@ -1,4 +1,4 @@
-What characters can you use in a Rōblox display name? Check the [`./.csv`](./.csv) file out to see for yourself.
+What characters can you use in a Rōblox display name? Check the [`csv`](./_.csv) file out to see for yourself.
 
 **You need to have `ROBLOSECURITY` set as an environment variable.**
 
